@@ -1,0 +1,60 @@
+---
+title: "MyWebsite"
+author: "Yufei Zhao"
+date: "2017/11/15"
+output: html_document
+---
+
+#```{r}
+#install.packages("lsa")
+#```
+
+```{r}
+library("lsa")
+```
+
+
+```{r}
+data <- read.csv("../data/data_sample/eachmovie_sample/data_train.csv")
+View(data)
+```
+
+
+```{r}
+userLength <- length(unique(data$User))
+movieLength <- length(unique(data$Movie))
+```
+
+
+#construct a dataframe 
+```{r}
+dataframe <- data.frame(matrix(0, nrow=userLength, ncol=movieLength+1))
+colnames(dataframe) <- c("User", as.character(sort(unique(data$Movie))))
+dataframe$User <- as.character(sort(unique(data$User)))
+```
+
+#fill the scores into the frame
+```{r}
+len <- nrow(data)
+for (i in 1:len){
+    movie <- data$Movie[i]
+    user <- data$User[i]
+    dataframe[as.character(user) == dataframe$User, as.character(movie) == colnames(dataframe)] <- data$Score[i]
+    print(i) #marker
+}
+
+write.csv(dataframe, file = "../data/movie_train.csv")
+```
+
+
+```{r}
+dd <- read.csv("../data/movie_train.csv", header=TRUE)
+```
+
+
+
+
+```{r}
+cosine(as.numeric(data[1,-1]), as.numeric(data[2,-1]))
+```
+
