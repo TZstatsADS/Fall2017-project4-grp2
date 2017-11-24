@@ -89,38 +89,27 @@ convertToMatrixData1 <- function( data ){
 } 
 
 # function to calculate Spearman Correlation
-calculateSpearmanCorr <- function( data ){
+calculateEntropy <- function( data ){
   
-  corrMat <- matrix( NA, ncol = 5, nrow = sum( 1:(ncol(data)-2) ) )
-  k <- 1
-  for( i in 1:(ncol(data)-1) ){
+  ## input:
+  ## - matrix/dataframe with users in rows and attirbutes in columns
+  ## output
+  ## - matrix with two columns (user, entropy)
+  
+  library( entropy )
+  
+  dfEntropy <- matrix( NA, nrow = nrow(data), ncol = 2 )
+  for( i in 1:nrow( data ) ){
     
-    for( j in (i+1):(ncol(data)) ){
-      
-      # i
-      corrMat[k,1] <- colnames(data)[i+1]
-      
-      # j
-      corrMat[k,2] <- colnames(data)[j]
-      
-      # calculate spearman correlation
-      corrMat[k,3] <- cor.test(unlist(data[[i+1]]), 
-                               unlist(data[[j]]),  
-                               method = "spearman")$estimate
-      
-      # calculate similarity vector
-      
-      # calculate entropy
-      
-      # update k
-      k <- k + 1
-      
-    }
+    # get user id
+    dfEntropy[ i, 1 ] <-  as.numeric(data[i,1])
     
+    # calculate entropy for user i
+    dfEntropy[ i, 2 ] <- entropy( as.numeric( data[i,2:ncol(data)] ) )
   }
   
-  colnames(corrMat) <- c("i","j","spearman", "simVector", "entropy")
-    
-  return corrMat
+  colnames( dfEntropy ) <- c("user", "entropy")
+  
+  return dfEntropy
   
 }
