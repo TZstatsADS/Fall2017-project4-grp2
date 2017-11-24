@@ -15,7 +15,8 @@ library("lsa")
 
 
 ```{r}
-data <- read.csv("../data/data_sample/eachmovie_sample/data_train.csv")
+data <- read.csv("../data/data_sample/eachmovie_sample/data_test.csv", header=TRUE)
+#data <- read.csv("../data/data_sample/eachmovie_sample/data_train.csv")
 View(data)
 ```
 
@@ -43,13 +44,16 @@ for (i in 1:len){
     print(i) #marker
 }
 
-write.csv(dataframe, file = "../data/movie_train.csv")
+write.csv(dataframe, file = "../data/movie_test.csv")
 ```
 
 
 ```{r}
-dd <- read.csv("../data/movie_train.csv", header=TRUE)
+train <- read.csv("../data/movie_test.csv", header = TRUE);
 ```
+
+
+
 
 
 
