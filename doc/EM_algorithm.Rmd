@@ -10,9 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 ## read data ##
-setwd("~/Google Drive/Course | ADS/Project 4/data_sample/eachmovie_sample")
-eachmovie<-read.csv("data_train.csv",header = T)
-eachmovie_test<-read.csv("data_test.csv",header = T)
+#setwd("~/Fall2017-project4-grp2-master/data/data_sample/eachmovie_sample")
+eachmovie<-read.csv("~/Fall2017-project4-grp2-master/data/data_sample/eachmovie_sample/data_train.csv",header = T)
+eachmovie_test<-read.csv("~/Fall2017-project4-grp2-master/data/data_sample/eachmovie_sample/data_test.csv",header = T)
 dim(eachmovie)
 
 
@@ -114,13 +114,15 @@ CV_Movie <- function(fold=5, dataset2, C_list){
   
   n = nrow(dataset2)
   c_number<-length(C_list)
-  error_c <- rep(NA, c_number)
+  error_c <-0.770466 rep(NA, c_number)
   result_para<-vector("list",c_number)
   
   for(count in 1:c_number){
     
     C<-C_list[count]
     error_fold<-rep(NA, fold)
+    error2_fold<-rep(NA, fold)
+    error3_fold<-rep(NA, fold)
     for(f in 1:fold){
         
     rand <- sample(1:n, 5)
@@ -139,7 +141,24 @@ CV_Movie <- function(fold=5, dataset2, C_list){
       test_data_1<-test_data[-nn,]
       test_data$expectation_score[nn]<-EstimateScore(user_i,movie_b,test_data_1)
     }
+    #criterion 1: accuracy (error_fold)
     error_fold[fold]<-sum(test_data$score == test_data$expectation_score)/(n/5)
+    
+    #criterion 2: MAE
+    error2_fold[fold]<-sum(abs(test_data$score - test_data$expectation_score))/(n/5)
+    
+    #criterion 3: ROC
+    n=0;
+    m=0;
+    for(i in 1:nrow(test_data)){
+    if(test_data[i,4]>3 & test_data[i,5]>3){
+     n=n+1
+    }else if(test_data[i,4]>3 & test_data[i,5]<=3){
+      m=m+1
+     }
+    }
+    error3_fold[fold]<- n / (n+m)
+    
     }
    error_c[count] <-mean(error_fold) 
   }
@@ -152,13 +171,33 @@ CV_Movie <- function(fold=5, dataset2, C_list){
 
 eachmovie_test$expectation_score<-NA
 n_test<-nrow(eachmovie_test)
-for(row in n_test){
-  user_i < -eachmovie_test[row,"user"]
+for(row in 1:n_test){
+  user_i <- eachmovie_test[row,"user"]
   movie_b <- eachmovie_test[row,"movie"]
-      eachmovie_test_1<-eachmovie_test[-nn,]
-      eachmovie_test$expectation_score[nn]<-EstimateScore(user_i,movie_b,eachmovie_test_1)
+      eachmovie_test_1<-eachmovie_test==
+      eachmovie_test$expectation_score<-EstimateScore(user_i,movie_b,eachmovie_test_1)
 }
+
+
+
+
+#criterion 1: accuracy
 test_error<- sum(eachmovie_test$score == eachmovie_test$expectation_score)/n_test
+
+#criterion 2: MAE
+test_error2<- sum(abs(eachmovie_test$score - eachmovie_test$expectation_score))/n_test
+
+#criterion 3: ROC
+n=0;
+m=0;
+for(i in 1:nrow(eachmovie_test)){
+if(eachmovie_test[i,4]>3 & eachmovie_test[i,5]>3){
+ n=n+1
+}else if(eachmovie_test[i,4]>3 & eachmovie_test[i,5]<=3){
+  m=m+1
+ }
+}
+test_error3=n/(n+m)
 
 
 
