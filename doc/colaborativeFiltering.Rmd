@@ -89,15 +89,20 @@ neighbor_select <- function(mat, neighbor){
     
     
     # for spearman
-    neighbor_row_spearman <- filter(mat,i==user)%>%arrange(desc(spear_corr))%>%select(i,j)%>%head(neighbor)
+    neighbor_row_spearman <- filter(mat,i==user|j==user)%>%arrange(desc(spear_corr))%>%select(i,j)%>%head(neighbor)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
 
-    mat_spearman[marker:(marker+neighbor-1),1:2] <- as.matrix(neighbor_row_spearman)
+    mat_spearman[marker:(marker+neighbor-1),1:2] <- matrix(c(rep(user,20), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
     
     
     # for vector similarity
-    neighbor_row_vector <- filter(mat,i==user)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
+    neighbor_row_vector <- filter(mat,i==user|j==user)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
 
-     mat_vector[marker:(marker+neighbor-1),1:2] <- as.matrix(neighbor_row_vector)   
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+     mat_vector[marker:(marker+neighbor-1),1:2] <-  matrix(c(rep(user,20), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_vector)   
     
      # records
      print(i)
@@ -111,9 +116,10 @@ neighbor_select <- function(mat, neighbor){
   colnames(data_spearman) <- colname
   colnames(data_vector) <- colname
   
-  saveRDS(object = data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep="")) 
-  
-  saveRDS(object = data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep=""))
+  #saveRDS(object = data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep="")) 
+  write.csv(data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_MS.csv", sep=""))
+  #saveRDS(object = data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep=""))
+  write.csv(data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_MS.csv", sep=""))
 }
 ```
 
@@ -121,6 +127,14 @@ neighbor_select <- function(mat, neighbor){
 ```{r}
 neighbor_select(mat = similarity_measures_MS, neighbor = 20)
 ```
+
+```{r}
+a<-read.csv("../data/spearman_neighbor_top20_withoutWeight_MS.csv", header=TRUE)
+```
+
+
+
+
 
 
 
@@ -135,5 +149,14 @@ for combing threshold and top 20
 ```{r}
 filter(similarity_measures_MS,i==10010, abs(spear_corr) >= 0.1)%>%select(i,j) %>%head(20)
 ```
+
+
+
+
+
+
+
+
+
 
 
