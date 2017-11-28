@@ -11,13 +11,9 @@ readAnonymousMicrosoftWebData <- function(){
   library( data.table )
   
   # read training data (attributes and case/vote)
-  #trainAttrib   <- fread("../data/dataset1.txt", skip = 7, sep = ",", nrow = 294)
-  #trainCaseVote <- fread("../data/dataset1.txt", skip = 301, sep = ",")
   train <- fread("../data/data_sample/MS_sample/data_train.csv", sep = ",", select = c(2,3,4))
   
   # read test data (attributes and case/vote)
-  #testAttrib <- fread("../data/dataset1test.txt", skip = 7, sep = ",", nrow = 294)
-  #testCaseVote <- fread("../data/dataset1test.txt", skip = 301, sep = ",")
   test   <- fread("../data/data_sample/MS_sample/data_test.csv", sep = ",", select = c(2,3,4))
   
   return( list( "test" = test,
@@ -111,5 +107,69 @@ calculateEntropy <- function( data ){
   colnames( dfEntropy ) <- c("user", "entropy")
   
   return dfEntropy
+  
+}
+
+# function to predict based on Spearman or Vector Similarity
+collabPredict <- function( user_data, neighbors, measure, measure_data, user_a, atrib ){
+  
+  # inputs
+  # - user_data : input data with votes and users
+  # - neighbors : dataframe with two columns i, j, j being the neighbors
+  # - measure : string "spearman" or "vector_similarity"
+  # - measure_data : dataframe containing similarity measures
+  # - user_a : user to predict 
+  # - atrib : atribute to predict (rating on movie or clicking on MS website)
+  
+#   user_a <- "10021"
+#   user_data <- fread("/Users/pedrohmariani/Documents/Columbia/Academic/Fall 2017/AppliedDataScience/Projects/TZstatsFolder/fall2017-project4-fall2017-project4-grp2/data/data_sample/eachmovie_sample/movie_train.csv", skip = 1, sep = ";")
+#   measure <- "spearman"
+#   measure_data <- fread("/Users/pedrohmariani/eclipse-workspace/proj4-datascience/similarity_measures_MS.csv", sep = ",")
+#   atrib <- "1207"
+#   neighbors <- data.table( "i" = c( rep( user_a, 30 ), rep( "10019", 30 ), rep( "10031", 30 ) ),
+#                            "j" = c( user_data$V1[501:530], user_data$V1[401:430], user_data$V1[31:60] ) )
+#   
+  # load library
+  library(data.table)
+  
+  # subset neighbors of user_a
+  neigbors <- as.data.table( neighbors )
+  neighbors <- neighbors[ i == user_a ]
+  
+  # subset weights between user a and rest
+  sim_filt <- measure_data[ i == user_a | j == user_a ]
+  
+  # define column of similarity to be used
+  simCol <- ifelse( measure == "spearman", 3, 4 )
+  
+  # calculate average rating of active user
+  r_a_bar <- mean( as.numeric(user_data[ user_data$V1 == user_a ])[2:ncol(user_data)] )
+  
+  cumNum <- 0
+  cumDen <- 0
+  for( u in neighbors$j ){
+    
+    # calculate average rating of user u
+    r_u_bar <- mean( as.numeric(user_data[ user_data$V1 == u ])[2:ncol(user_data)] )
+    
+    # rating of user u to atribute i
+    r_u_i <- as.numeric(user_data[ user_data$V1 == u ])[which( colnames(user_data) == atrib )]
+    
+    # get weight between user a and u
+    w_a_u <- as.numeric( sim_filt[ i== u | j == u ] )[ simCol ]
+    
+    # calculate numerator
+    cumNum <- cumNum + ( r_u_i - r_u_bar ) * w_a_u
+    
+    # calculate denominator
+    cumDen <- cumDen + w_a_u
+  
+  }
+  
+  #make prediction
+  pred <- r_a_bar + cumNum / cumDen
+  
+  # return prediction
+  pred
   
 }
