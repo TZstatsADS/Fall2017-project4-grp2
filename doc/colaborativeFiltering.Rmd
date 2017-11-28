@@ -5,60 +5,135 @@ date: "2017/11/15"
 output: html_document
 ---
 
+
+# read test dataset and train dataset
+```{r}
+test_path <- "../data/data_sample/eachmovie_sample/data_test.csv"
+train_path <- "../data/data_sample/eachmovie_sample/data_train.csv"
+```
+
+
+```{r}
+convert_matrix_from_dataset<-function(path){
+  data <- read.csv(path, header=TRUE)
+  userLength <- length(unique(data$User))
+  movieLength <- length(unique(data$Movie))
+  
+  dataframe <- data.frame(matrix(0, nrow=userLength, ncol=movieLength+1))
+  colnames(dataframe) <- c("User", as.character(sort(unique(data$Movie))))
+  dataframe$User <- as.character(sort(unique(data$User)))
+  
+  len <- nrow(data)
+  for (i in 1:len){
+      movie <- data$Movie[i]
+      user <- data$User[i]
+      dataframe[as.character(user) == dataframe$User, as.character(movie) == colnames(dataframe)] <- data$Score[i]
+      print(i) #marker
+  }
+  str <- strsplit(path,'/')[[1]][5]
+  postfix <- substr(str, 5, nchar(str))
+  write.csv(dataframe, file = paste("../data/movie", postfix,sep = ""))
+}
+```
+
+# actual conversion to user-rate matrix
+```{r}
+combo <- c(test_path, train_path)
+for (i in 1:2){
+  convert_matrix_from_dataset(path = combo[i])
+}
+```
+
+
+
+
+
+### Part 2
+
+
+```{r}
+library(dplyr)
+```
+
+
+
+
+selecting neighbors
+```{r}
+# read data from dropbox since the martix is too large
+similarity_measures_MS <- read.csv("~/Dropbox/Project4/similarity_measures_MS.csv", header=TRUE)
+```
+
+
+
 #```{r}
-#install.packages("lsa")
+#length(unique(similarity_measures_MS$i))
 #```
 
+
+
+#directly select top 20 neighbors for each user without weighting
 ```{r}
-library("lsa")
-```
+neighbor_select <- function(mat, neighbor){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- matrix(NA,rownum*neighbor, 2) 
+  mat_vector <- matrix(NA, rownum*neighbor, 2)
+  
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    marker <- 1+(i-1)*neighbor
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user)%>%arrange(desc(spear_corr))%>%select(i,j)%>%head(neighbor)
 
+    mat_spearman[marker:(marker+neighbor-1),1:2] <- as.matrix(neighbor_row_spearman)
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
 
-```{r}
-data <- read.csv("../data/data_sample/eachmovie_sample/data_test.csv", header=TRUE)
-#data <- read.csv("../data/data_sample/eachmovie_sample/data_train.csv")
-View(data)
-```
-
-
-```{r}
-userLength <- length(unique(data$User))
-movieLength <- length(unique(data$Movie))
-```
-
-
-#construct a dataframe 
-```{r}
-dataframe <- data.frame(matrix(0, nrow=userLength, ncol=movieLength+1))
-colnames(dataframe) <- c("User", as.character(sort(unique(data$Movie))))
-dataframe$User <- as.character(sort(unique(data$User)))
-```
-
-#fill the scores into the frame
-```{r}
-len <- nrow(data)
-for (i in 1:len){
-    movie <- data$Movie[i]
-    user <- data$User[i]
-    dataframe[as.character(user) == dataframe$User, as.character(movie) == colnames(dataframe)] <- data$Score[i]
-    print(i) #marker
+     mat_vector[marker:(marker+neighbor-1),1:2] <- as.matrix(neighbor_row_vector)   
+    
+     # records
+     print(i)
+  }
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user","neighbor")
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  saveRDS(object = data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep="")) 
+  
+  saveRDS(object = data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep=""))
 }
-
-write.csv(dataframe, file = "../data/movie_test.csv")
 ```
 
 
 ```{r}
-train <- read.csv("../data/movie_test.csv", header = TRUE);
+neighbor_select(mat = similarity_measures_MS, neighbor = 20)
 ```
 
 
 
 
-
-
-
+# for threshold
 ```{r}
-cosine(as.numeric(data[1,-1]), as.numeric(data[2,-1]))
+filter(similarity_measures_MS,i==10010, abs(spear_corr) >= 0.3)%>%select(i,j)
 ```
+
+
+for combing threshold and top 20
+```{r}
+filter(similarity_measures_MS,i==10010, abs(spear_corr) >= 0.1)%>%select(i,j) %>%head(20)
+```
+
 
