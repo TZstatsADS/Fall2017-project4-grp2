@@ -110,6 +110,50 @@ calculateEntropy <- function( data ){
   
 }
 
+# function to calculate 
+varianceWeighting <- function( user_data, user_a, user_u ){
+  
+  #user_a <- "10021"
+  #user_u <- "10019"
+  #user_data <- fread("/Users/pedrohmariani/Documents/Columbia/Academic/Fall 2017/AppliedDataScience/Projects/TZstatsFolder/fall2017-project4-fall2017-project4-grp2/data/data_sample/MS_sample/matrix_train.csv", sep = ",")      
+  
+  # number of items
+  m <- ncol(user_data) - 1
+  
+  # votes user_a
+  votes_a <- as.numeric(user_data[ user_data$V1 == user_a ])
+  
+  # votes user_u
+  votes_u <- as.numeric(user_data[ user_data$V1 == user_u ])
+  
+  # get all items variances
+  vars <- apply( user_data[,2:ncol(user_data)] , 2, var )
+  
+  # cumulators
+  cumNum <- 0
+  cumDen <- 0
+  for( i in 1:m ){
+    
+    # normalized rating for item i, user u
+    z_u_i <- ( votes_u[ 1 + i ] - mean( votes_u ) ) / sd( votes_u )
+    
+    # normalized rating for item i, user a
+    z_a_i <- ( votes_a[ 1 + i ] - mean( votes_a ) ) / sd( votes_a )
+    
+    # variance weight i
+    v_i <- ( vars[ i ] - min( vars ) ) / max( vars )
+    
+    # add to cumulators
+    cumNum <- cumNum + v_i * z_a_i * z_u_i
+    cumDen <- cumDen + v_i
+    
+  }
+  
+  # return variance weight between users a and u
+  cumNum / cumDen
+  
+}
+
 # function to predict based on Spearman or Vector Similarity
 collabPredict <- function( user_data, neighbors, measure, measure_data, user_a, atrib ){
   
@@ -173,3 +217,5 @@ collabPredict <- function( user_data, neighbors, measure, measure_data, user_a, 
   pred
   
 }
+
+
