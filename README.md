@@ -4,17 +4,17 @@
 
 Term: Fall 2017
 
-+ Team #
-+ Projec title: Lorem ipsum dolor sit amet
++ Team #2
++ Project title: Collaborative Filtering Algorithms Evaluation
 + Team members
-	+ team member 1
-	+ team member 2
-	+ team member 3
-	+ team member 4
-	+ team member 5
-+ Project summary: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+	+ Cavalheiro De Paoli Lyrio, Joaquim
+    + Chen, Tiantian
+    + Park, Stephanie
+    + Zhao, Yufei
+    + Zhou, Xiaoyu
++ Project summary: In this project, we implemented several different collaborative filtering algorithms and compared their performance on two data sets: Anonymous Microsoft Web Data and EachMovie. The divided the project on two types of algorithms: memory-based and model-based. In the memory-based algorithms, we implemented different similarity weights (Spearman correlation, vector similairty, entropy and SimRank), variance weighting, selecting neighbors methods (weight threshold, best n-estimator and combined) and rating normalization. The model-based algorithm was a clustering EM model.
 	
-**Contribution statement**: ([default](doc/a_note_on_contributions.md)) All team members contributed equally in all stages of this project. All team members approve our work presented in this GitHub repository including this contributions statement. 
+**Contribution statement**: ([default](doc/a_note_on_contributions.md)) 
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
@@ -24,7 +24,6 @@ proj/
 ├── data/
 ├── doc/
 ├── figs/
-└── output/
 ```
 
 Please see each subfolder for a README file.
