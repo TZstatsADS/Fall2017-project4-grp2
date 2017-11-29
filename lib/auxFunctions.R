@@ -106,7 +106,7 @@ calculateEntropy <- function( data ){
   
   colnames( dfEntropy ) <- c("user", "entropy")
   
-  return dfEntropy
+  dfEntropy
   
 }
 
