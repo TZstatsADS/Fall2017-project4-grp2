@@ -6,3 +6,6 @@ The data directory contains data used in the analysis. This is treated as read o
 
 Data Set 1: https://archive.ics.uci.edu/ml/datasets/Anonymous+Microsoft+Web+Data
 Data Set 2: http://www.gatsby.ucl.ac.uk/~chuwei/data/EachMovie/eachmovie.html
+
+Due to the size of some generated files, they can be found at these Dropbox folders:
+  - https://www.dropbox.com/home/AppliedDataScience/Project4
