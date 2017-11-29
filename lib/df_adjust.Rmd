@@ -1,0 +1,38 @@
+---
+title: "df_adjust"
+author: "Xiaoyu Zhou  UNI:xz2599"
+date: "November 29, 2017"
+output: html_document
+---
+
+```{r }
+mt=read.csv("/Users/Xiaoyu/Downloads/Fall2017-project4-grp2-master/data/data_sample/eachmovie_sample/movie_test.csv",header = T)
+
+
+list <- strsplit(colnames(mt)[c(-1,-2)], 'X')
+attributeID <- NULL
+for (i in 1:length(list)){
+  attributeID <- c(attributeID, as.numeric(list[[i]][2]))
+}
+
+
+matrix <- NULL
+
+for(i in 1:nrow(mt)){
+  
+  index <- attributeID[mt[i,c(-1,-2)]!=0]
+  score <- mt[i,c(-1,-2)][mt[i,c(-1,-2)]!=0]
+  
+  mat <- matrix(c(rep(mt[i,2], length(index)), index,score), ncol=3, byrow=FALSE)
+  
+  matrix <- rbind(matrix, mat)
+  #record
+  print(i)
+}
+
+df <- data.frame(matrix)
+colnames(df) <- c("user", "attribute", "score")
+
+write.csv(df, file = "~/Desktop/df_movie_test.csv")
+```
+

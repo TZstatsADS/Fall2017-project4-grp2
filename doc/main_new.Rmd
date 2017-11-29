@@ -1,6 +1,6 @@
 ---
 title: "Project 4 - Collaborative Filtering"
-author: "Jing Wu, Tian Zheng"
+author: "Yufei Zhao, Joaquim Lyrio"
 date: "3/22/2017"
 output: pdf_document
 ---
@@ -18,7 +18,10 @@ Process:
 ```{r}
 if (!require("data.table")) install.packages("data.table")
 if (!require("entropy")) install.packages("entropy")
-
+if (!require("dplyr")) install.packages("dplyr")
+library(dplyr)
+library(entropy)
+library(data.table)
 setwd("/Users/pedrohmariani/Documents/Columbia/Academic/Fall 2017/AppliedDataScience/Projects/TZstatsFolder/fall2017-project4-fall2017-project4-grp2/doc")
 
 # load axiliar functions
@@ -32,6 +35,74 @@ First, we read Microsoft's data set and convert it to the format with features i
 data_orig <- readAnonymousMicrosoftWebData()
 data_MS   <- convertToMatrixData1( data = data_orig )
 ```
+
+Meanwhile, we also read Movie data set and convert it to the format with features in columns and users in rows
+```{r}
+test_path <- "../data/data_sample/eachmovie_sample/data_test.csv"
+train_path <- "../data/data_sample/eachmovie_sample/data_train.csv"
+combo <- c(test_path, train_path)
+for (i in 1:2){
+  convert_matrix_from_dataset(path = combo[i])
+}
+data_train_movie <- read.csv("../data/data_sample/eachmovie_sample/movie_train.csv", header = TRUE)
+data_test_movie <- read.csv("../data/data_sample/eachmovie_sample/movie_test.csv",header=TRUE)
+```
+
+
+## Step 4: calculate similarity measures
+Since the computation is so heavy, then we use lower-level language: Java to help us to calculate similarity measures. The script is in (../lib/SimilarityMeasures.java)
+
+
+## Step5 : get neighbor
+We can load the similarity measure results in terms of csv file below
+By the way, since the two matrixs of similarity for each dataset are too huge, we cannot upload it into github instead of Dropbox(https://www.dropbox.com/sh/pjqik8k8kexs80n/AAA5GmRCPsxcbTvLPW2ClcEWa?dl=0)
+
+MS: selecting neighbors (top, threshold, combo)
+```{r}
+# read data from dropbox since the martix is too large
+similarity_measures_MS <- read.csv("~/Dropbox/Project4/similarity_measures_MS.csv", header=TRUE)
+```
+
+```{r}
+# make neighborhood selection based on top 20 in terms of spearman correlation and vector similarity
+neighbor_select_top_MS(similarity_measures_MS, 20)
+
+# make neighborhood selection based on threshold 0.3 in terms of spearman correlation and vector similarity
+neighbor_select_threshold_MS(similarity_measures_MS, 0.3)
+
+# make neighborhood selection based on top 20 and threshold 0.1 in terms of spearman correlation and vector similarity
+neighbor_select_combo_MS(similarity_measures_MS,20,0.1)
+```
+
+
+Movie: selecting neighbors (top, threshold, combo)
+```{r}
+# read data from dropbox since the martix is too large
+similarity_measures_movie <- read.csv("~/Dropbox/Project4/similarity_measures_eachmovie.csv", header=TRUE)
+```
+
+```{r}
+# make neighborhood selection based on top 20 in terms of spearman correlation and vector similarity
+neighbor_select_top_movie(similarity_measures_movie,20)
+
+# make neighborhood selection based on threshold 0.3 in terms of spearman correlation and vector similarity
+neighbor_select_threshold_movie(similarity_measures_movie,0.3)
+
+# make neighborhood selection based on top 20 and threshold 0.1 in terms of spearman correlation and vector similarity
+neighbor_select_combo_movie(similarity_measures_movie,20,0.1)
+```
+
+
+
+
+##Step 6: make predictions
+
+
+
+
+##Step 7: display results
+
+
 
 
 

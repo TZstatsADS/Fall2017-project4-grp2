@@ -1,0 +1,184 @@
+---
+title: "em_s"
+author: "Tiantian Chen (tc2818)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(magrittr)
+library(Rmpfr) # high-precision mulitply with very small number
+library(parallel)
+
+ClusterModel <- function(training_set, test_set, C){
+  
+  # initial parallel 
+  no_cores <- detectCores() - 1
+  
+  # need to check training_set and test_set
+  # TO-DO: stopif(check_dataset(training_set, test_set))
+  
+  full_data = bind_rows(training_set, test_set)
+  
+  # initial the params: mu, gamma
+  Movie_set <- unique(full_data$Movie)
+  User_set <- unique(full_data$User)
+  K <- 6
+  rm(full_data)
+  
+  mu_est <- sum1_sampler(C)
+  
+  sample_jc <- replicate(length(Movie_set)*C, sum1_sampler(K+1))
+  gamma_est <- array(data = sample_jc, 
+                     dim = c(K, length(Movie_set), C), # array: k j c
+                     dimnames = list(
+                       c(1:K), 
+                       Movie_set,
+                       c(1:C)
+                     ))
+  # check:
+  # print(sum(gamma_est[,1,1]))
+  
+  params <- list()
+  params[[1]] <- mu_est
+  params[[2]] <- gamma_est
+  
+  # update the params
+  change_mu <- 1
+  change_gamma <- 1
+  iter <- 0
+  
+  print("Finish initialization.")
+  
+  while(change_mu > 0.5 & change_gamma > 0.5){ # iteration stop condition
+    
+    prev_mu <- mu_est
+    prev_gamma <- gamma_est
+    
+    # update params
+    # E step
+    pi <- (mclapply(User_set, FUN = function(i){ return(calc_pi_i(i, params, training_set, C))}, mc.cores = no_cores)
+           %>% unlist()
+           %>% matrix(nrow = length(User_set), ncol = C, dimnames = list(User_set, 1:C), byrow = TRUE)
+           %>% array(dim=c(length(User_set), C), dimnames = list(User_set, 1:C))
+    )
+    
+    # check-point:
+    # pi should be a N*C matrix
+    # sum(pi[1,])
+    
+    # M step
+    ## update mu
+    mu_est <- apply(pi, FUN = sum, MARGIN = 2) / nrow(pi)
+    ## update gamma
+    for (j in Movie_set){
+      User_set_j <- subset(training_set, Movie==j)
+      pi_j <- pi[as.character(User_set_j$User), ,drop=FALSE]
+      for (k in 1:K){
+        User_set_j_k <- subset(User_set_j, Movie==j & Score==k)$User
+        if (length(User_set_j_k) == 0){
+          gamma_est[k, as.character(j), ] = 0
+        } else {
+          user_set_j_idx <- as.character(User_set_j$User)
+          gamma_est[k, as.character(j), ] = apply(pi[as.character(User_set_j_k), ,drop=FALSE], FUN = sum, MARGIN = 2) / apply(pi[user_set_j_idx, ,drop=FALSE], sum, MARGIN = 2)
+        }
+      }
+    }
+    
+    # calculate change
+    change_mu <- norm(as.matrix(mu_est - prev_mu), 'f')
+    change_gamma <- norm(as.matrix(gamma_est - prev_gamma),'f')
+    iter <- iter + 1
+    print(paste0("iteration: ", iter, ", change_mu:", change_mu, ", change_gamma:", change_gamma))
+    
+  }
+  
+  # predict the test set score
+  score <- estimate_score(test_set, training_set, params=params)
+  
+  return(score)
+}
+
+sum1_sampler <- function(number=6){
+  #input--number: amount of random numbers
+  #input--sum: the sum of random numbers generated
+  sample1<- sort(runif((number-1)))
+  sample2<-c(sample1[1],diff(sample1),1-sample1[number-1])
+  return(sample2)
+}
+
+estimate_single_score <-function(i, b, training_set, params){
+  # input 
+  #   i: (integer) user id
+  #   b: (integer) movie id
+  
+  gamma_from_em <- params[[2]]
+  mu_from_em <- params[[1]]
+  K <- 6
+  
+  score_k <- numeric(K+1) 
+  
+  I_i <- subset(training_set, User==i)$Movie
+  for (k in 1:K){
+    prob_b = gamma_from_em[k, as.character(b), ]
+    
+    prob_j_product <- (gamma_from_em[k, as.character(I_i), ,drop=TRUE]
+                       %>% Rmpfr::mpfr(8)
+                       %>% apply(FUN = prod, MARGIN = 2)
+    )
+    score_k[k] <- sum(mu_from_em * prob_b * prob_j_product) / sum(mu_from_em * prob_j_product)
+  }
+  score_k <- score_k %>% lapply(FUN = as("numeric")) %>% unlist()
+  return(sum(c(1:(K+1))*score_k))
+}
+
+estimate_score<- function(test_set, training_set, params){
+  return(mcmapply(FUN = function(i, b){ return(estimate_single_score(i, b, params = params, training_set = training_set))},
+                  test_set$User, test_set$Movie,
+                  mc.cores=no_cores)
+  )
+} 
+
+calc_pi_i <- function(i, params, training_set, C){
+  mu_from_em <- params[[1]]
+  gamma_from_em <- params[[2]]
+  phi_D_i <- calc_phi_D_i(i, gamma_from_em, training_set, C)
+  pi_i <- (mu_from_em * phi_D_i)/sum(mu_from_em * phi_D_i)
+  return(Rmpfr::asNumeric(pi_i))
+}
+
+calc_phi_D_i <- function(i, gamma, training_set, C){
+  I_i <- subset(training_set, User==i)$Movie
+  phi_D_i <- Rmpfr::mpfr(rep(1, C), 8)
+  for (j in I_i){
+    k <- subset(training_set, User==i & Movie==j)$Score
+    phi_D_i <- phi_D_i * gamma[k, as.character(j), ]
+  }
+  return(phi_D_i)
+}
+
+```
+
+```{r}
+# setwd("~/Google Drive/Course | ADS/Project 4/data_sample/eachmovie_sample")
+eachmovie<-read.csv("data_train.csv",header = T)
+eachmovie_test<-read.csv("data_test.csv",header = T)
+
+
+training_set <- eachmovie
+test_set <- eachmovie_test
+
+pred <- ClusterModel(training_set, test_set, 6)
+
+write.csv(pred,"pred.csv")
+
+```
+
+```{r}
+write.csv(pred,"pred.csv")
+```
+

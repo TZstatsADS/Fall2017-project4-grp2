@@ -218,4 +218,350 @@ collabPredict <- function( user_data, neighbors, measure, measure_data, user_a, 
   
 }
 
+# function to convert user-rate matrix
+convert_matrix_from_dataset<-function(path){
+  data <- read.csv(path, header=TRUE)
+  userLength <- length(unique(data$User))
+  movieLength <- length(unique(data$Movie))
+  
+  dataframe <- data.frame(matrix(0, nrow=userLength, ncol=movieLength+1))
+  colnames(dataframe) <- c("User", as.character(sort(unique(data$Movie))))
+  dataframe$User <- as.character(sort(unique(data$User)))
+  
+  len <- nrow(data)
+  for (i in 1:len){
+    movie <- data$Movie[i]
+    user <- data$User[i]
+    dataframe[as.character(user) == dataframe$User, as.character(movie) == colnames(dataframe)] <- data$Score[i]
+    print(i) #marker
+  }
+  str <- strsplit(path,'/')[[1]][5]
+  postfix <- substr(str, 5, nchar(str))
+  write.csv(dataframe, file = paste("../data/data_sample/eachmovie_sample/movie", postfix,sep = ""))
+}
 
+
+#directly select top 20 neighbors for each user without weighting
+neighbor_select_top_MS <- function(mat, neighbor){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- matrix(NA,rownum*neighbor, 2) 
+  mat_vector <- matrix(NA, rownum*neighbor, 2)
+  
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    marker <- 1+(i-1)*neighbor
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user|j==user)%>%arrange(desc(spear_corr))%>%select(i,j)%>%head(neighbor)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
+    
+    mat_spearman[marker:(marker+neighbor-1),1:2] <- matrix(c(rep(user,20), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user|j==user)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
+    
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+    mat_vector[marker:(marker+neighbor-1),1:2] <-  matrix(c(rep(user,20), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_vector)   
+    
+    # records
+    print(i)
+  }
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user","neighbor")
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  #saveRDS(object = data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep="")) 
+  write.csv(data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_MS.csv", sep=""))
+  #saveRDS(object = data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_MS.RData", sep=""))
+  write.csv(data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_MS.csv", sep=""))
+}
+
+
+
+# select neighborhood by threshold
+neighbor_select_threshold_MS <- function(mat, threshold){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- NULL
+  mat_vector <- NULL
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user|j==user, abs(spear_corr) >= threshold)%>%select(i,j)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
+    
+    mat_spearman<-rbind(mat_spearman,submat)
+    
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user|j==user, abs(vec_sim) >= threshold)%>%select(i,j)
+    
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2)
+    
+    mat_vector <- rbind(mat_vector, submat)
+    
+    # records
+    print(i)
+  }
+  
+  
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user",paste("threshold_",threshold, sep=""))
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  write.csv(data_spearman, file = paste("../data/spearman_threshold_", threshold, "_withoutWeight_MS.csv", sep=""))
+  
+  
+  write.csv(data_vector, file = paste("../data/vector_threshold_", threshold,"_withoutWeight_MS.csv", sep=""))
+  
+}
+
+
+
+# neighbor selection for combo
+neighbor_select_combo_MS <- function(mat, neighbor, threshold){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- NULL
+  mat_vector <- NULL
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    #filter(similarity_measures_MS,i==10010, abs(spear_corr) >= 0.1)%>%select(i,j) %>%head(20) # arange again
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user|j==user, abs(spear_corr) >= threshold)%>%arrange(desc(spear_corr))%>% select(i,j)%>%head(neighbor)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
+    
+    mat_spearman<-rbind(mat_spearman,submat)
+    
+    
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user|j==user, abs(vec_sim) >= threshold)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
+    
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2)
+    
+    mat_vector <- rbind(mat_vector, submat)
+    
+    # records
+    print(i)
+  }
+  
+  
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user",paste("neighbor_",neighbor,"_threshold_",threshold, sep=""))
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  write.csv(data_spearman, file = paste("../data/spearman_neighbor_",neighbor,"_threshold_", threshold, "_withoutWeight_MS.csv", sep=""))
+  
+  write.csv(data_vector, file = paste("../data/vector_neighbor_", neighbor, "threshold_", threshold,"_withoutWeight_MS.csv", sep=""))
+  
+}
+
+
+
+#directly select top 20 neighbors for each user without weighting
+neighbor_select_top_movie <- function(mat, neighbor){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- matrix(NA,rownum*neighbor, 2) 
+  mat_vector <- matrix(NA, rownum*neighbor, 2)
+  
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    marker <- 1+(i-1)*neighbor
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user|j==user)%>%arrange(desc(spear_corr))%>%select(i,j)%>%head(neighbor)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
+    
+    mat_spearman[marker:(marker+neighbor-1),1:2] <- matrix(c(rep(user,20), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user|j==user)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
+    
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+    mat_vector[marker:(marker+neighbor-1),1:2] <-  matrix(c(rep(user,20), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_vector)   
+    
+    # records
+    print(i)
+  }
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user","neighbor")
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  
+  write.csv(data_spearman, file = paste("../data/spearman_neighbor_top", neighbor,"_withoutWeight_movie.csv", sep=""))
+  
+  write.csv(data_vector, file = paste("../data/vector_neighbor_top", neighbor,"_withoutWeight_movie.csv", sep=""))
+}
+
+
+# select neighborhood by threshold
+neighbor_select_threshold_movie <- function(mat, threshold){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- NULL
+  mat_vector <- NULL
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user|j==user, abs(spear_corr) >= threshold)%>%select(i,j)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
+    
+    mat_spearman<-rbind(mat_spearman,submat)
+    
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user|j==user, abs(vec_sim) >= threshold)%>%select(i,j)
+    
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2)
+    
+    mat_vector <- rbind(mat_vector, submat)
+    
+    # records
+    print(i)
+  }
+  
+  
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user",paste("threshold_",threshold, sep=""))
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  write.csv(data_spearman, file = paste("../data/spearman_threshold_", threshold, "_withoutWeight_movie.csv", sep=""))
+  
+  
+  write.csv(data_vector, file = paste("../data/vector_threshold_", threshold,"_withoutWeight_movie.csv", sep=""))
+}
+
+
+# neighbor selection for combo
+neighbor_select_combo_movie <- function(mat, neighbor, threshold){
+  userName <- unique(mat$i)
+  rownum <- length(userName)
+  
+  mat_spearman <- NULL
+  mat_vector <- NULL
+  
+  for (i in 1:rownum){
+    user <- userName[i]
+    
+    #filter(similarity_measures_MS,i==10010, abs(spear_corr) >= 0.1)%>%select(i,j) %>%head(20) # arange again
+    
+    
+    # for spearman
+    neighbor_row_spearman <- filter(mat,i==user|j==user, abs(spear_corr) >= threshold)%>%arrange(desc(spear_corr))%>% select(i,j)%>%head(neighbor)
+    
+    
+    ngb <- c(neighbor_row_spearman$i[neighbor_row_spearman$i != user],neighbor_row_spearman$j[neighbor_row_spearman$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2) #as.matrix(neighbor_row_spearman)
+    
+    mat_spearman<-rbind(mat_spearman,submat)
+    
+    
+    
+    
+    # for vector similarity
+    neighbor_row_vector <- filter(mat,i==user|j==user, abs(vec_sim) >= threshold)%>%arrange(desc(vec_sim))%>%select(i,j)%>%head(neighbor)
+    
+    ngb <-  c(neighbor_row_vector$i[neighbor_row_vector$i != user],neighbor_row_vector$j[neighbor_row_vector$j != user])
+    
+    submat <- matrix(c(rep(user,length(ngb)), ngb),byrow=FALSE, ncol=2)
+    
+    mat_vector <- rbind(mat_vector, submat)
+    
+    # records
+    print(i)
+  }
+  
+  
+  
+  data_spearman <- data.frame(mat_spearman)
+  data_vector <- data.frame(mat_vector)
+  
+  colname <- c("user",paste("neighbor_",neighbor,"_threshold_",threshold, sep=""))
+  
+  colnames(data_spearman) <- colname
+  colnames(data_vector) <- colname
+  
+  write.csv(data_spearman, file = paste("../data/spearman_neighbor_",neighbor,"_threshold_", threshold, "_withoutWeight_movie.csv", sep=""))
+  
+  write.csv(data_vector, file = paste("../data/vector_neighbor_", neighbor, "threshold_", threshold,"_withoutWeight_movie.csv", sep=""))
+  
+}

@@ -12,10 +12,13 @@ Term: Fall 2017
     + Park, Stephanie
     + Zhao, Yufei
     + Zhou, Xiaoyu
-+ Project summary: In this project, we implemented several different collaborative filtering algorithms and compared their performance on two data sets: Anonymous Microsoft Web Data and EachMovie. The divided the project on two types of algorithms: memory-based and model-based. In the memory-based algorithms, we implemented different similarity weights (Spearman correlation, vector similairty, entropy and SimRank), variance weighting, selecting neighbors methods (weight threshold, best n-estimator and combined) and rating normalization. The model-based algorithm was a clustering EM model.
++ Project summary: In this project, we implemented several different collaborative filtering algorithms and compared their performance on two data sets: Anonymous Microsoft Web Data and EachMovie. The divided the project on two types of algorithms: memory-based and model-based. In the memory-based algorithms, we implemented different similarity weights (Spearman correlation, vector similairty, entropy and SimRank), variance weighting, selecting neighbors methods (weight threshold, best n-estimator and combined) and rating normalization. The model-based algorithm was a clustering EM model. For the evaluation part we applied MAE to get the results for different combination of neighbours and similiarity weight and prediction method.
 
 	
-**Contribution statement**: ([default](doc/a_note_on_contributions.md)) 
+**Contribution statement**: 
++ Zhou, Xiaoyu: wrote and ran code for Rating Normalization, Variance Weighting, wrote evaluation function MAE and ROC, made prediction for different pairs of similarity weight (spearman correlation and vector similarity). Collaborated with Tiantian to write code and debug for EM algorithm.
++ Zhao, Yufei: wrote and ran codes for neighborhood selection(Weight Threshold, Best-n-estimator, Combined) in terms of spearman coorelation and vector similarity. Worked closely with Joaquim on data cleanning, matrix transformation, calculation of similarity weights.
++ Chen Tiantian: wrote and debug codes for model-based method. Used EM algorithm to calculate the parameters of probabilities of cluster memberships and the conditional probabilities of votes given cluster. Used cross-validation to choose cluster number. Collaborated with Xiaoyu on the code for MAE and ROC.
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
