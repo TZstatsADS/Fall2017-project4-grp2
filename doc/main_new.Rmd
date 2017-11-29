@@ -160,7 +160,7 @@ neighbor_select_combo_movie(similarity_measures_movie,20,0.1)
 ```
 
 
-##Step 6: make predictions
+## Step 5: Make predictions
 Now that we have calculated the different types of measures of similarity and the neighbors according to them, we can move on to the prediction step.
 ```{r}
 # clean the data for ms-test and movie-test seperately
