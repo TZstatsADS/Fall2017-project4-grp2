@@ -162,12 +162,49 @@ neighbor_select_combo_movie(similarity_measures_movie,20,0.1)
 
 ##Step 6: make predictions
 Now that we have calculated the different types of measures of similarity and the neighbors according to them, we can move on to the prediction step.
+```{r}
+# clean the data for ms-test and movie-test seperately
+mt=read.csv("/Users/Xiaoyu/Downloads/Fall2017-project4-grp2-master/data/data_sample/eachmovie_sample/movie_test.csv",header = T)
 
+list <- strsplit(colnames(mt)[c(-1,-2)], 'X')
+attributeID <- NULL
+for (i in 1:length(list)){
+  attributeID <- c(attributeID, as.numeric(list[[i]][2]))
+}
+matrix <- NULL
+for(i in 1:nrow(mt)){
+  index <- attributeID[mt[i,c(-1,-2)]!=0]
+  score <- mt[i,c(-1,-2)][mt[i,c(-1,-2)]!=0]
+  mat <- matrix(c(rep(mt[i,2], length(index)), index,score), ncol=3, byrow=FALSE)
+  matrix <- rbind(matrix, mat)
+  #record
+  print(i)
+}
 
+df <- data.frame(matrix)
+colnames(df) <- c("user", "attribute", "score")
+#write.csv(df, file = "~/Desktop/df_movie_test.csv")
 
+#Ranking Score Evaluation
 
-##Step 7: display results
+rank_score <- function(voteVector, d = 0, alpha = 5){
+  total <- 0
+  for(j in 1:length(voteVector)){
+    total = total + max(voteVector[j]-d,0)/2^((j-1)/(alpha-1))
+  }
+  return(total)
+}
 
+calculate_all_rank_scores <- function(matrix){
+  scores <- NULL
+  for(i in 1:nrow(matrix)){
+    scores <- c(scores, rank_score(matrix[i,]))
+  }
+  return(100*sum(scores)/(length(scores)*max(scores)))
+  }
+calculate_all_rank_scores(mt)
+
+```
 
 
 
