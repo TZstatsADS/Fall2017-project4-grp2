@@ -16,7 +16,7 @@ Term: Fall 2017
 
 	
 **Contribution statement**: 
-+ Xiaoyu Zhou: 
++ Xiaoyu Zhou: wrote and ran code for Rating Normalization, Variance Weighting, wrote evaluation function MAE and ROC, made prediction for different pairs of similarity weight (spearman correlation and vector similarity). Collaborated with Tiantian to write and debug for EM algorithm.
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
