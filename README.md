@@ -12,7 +12,7 @@ Term: Fall 2017
     + Park, Stephanie
     + Zhao, Yufei
     + Zhou, Xiaoyu
-+ Project summary: In this project, we implemented several different collaborative filtering algorithms and compared their performance on two data sets: Anonymous Microsoft Web Data and EachMovie. The divided the project on two types of algorithms: memory-based and model-based. In the memory-based algorithms, we implemented different similarity weights (Spearman correlation, vector similairty, entropy and SimRank), variance weighting, selecting neighbors methods (weight threshold, best n-estimator and combined) and rating normalization. The model-based algorithm was a clustering EM model.
++ Project summary: In this project, we implemented several different collaborative filtering algorithms and compared their performance on two data sets: Anonymous Microsoft Web Data and EachMovie. The divided the project on two types of algorithms: memory-based and model-based. In the memory-based algorithms, we implemented different similarity weights (Spearman correlation, vector similairty, entropy and SimRank), variance weighting, selecting neighbors methods (weight threshold, best n-estimator and combined) and rating normalization. The model-based algorithm was a clustering EM model. For the evaluation part we applied MAE to get the results for different combination of neighbours and similiarity weight and prediction method.
 
 	
 **Contribution statement**: ([default](doc/a_note_on_contributions.md)) 
