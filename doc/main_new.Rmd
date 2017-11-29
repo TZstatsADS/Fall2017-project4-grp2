@@ -165,6 +165,7 @@ Now that we have calculated the different types of measures of similarity and th
 
 
 
+
 ##Step 7: display results
 
 
@@ -172,7 +173,7 @@ Now that we have calculated the different types of measures of similarity and th
 
 # MODEL-BASED ALGORITHM
 
-##Step 0: Prepare the environment and read data
+## Step 0: Prepare the environment and read data
 
 ```{r,warning=FALSE}
 
@@ -187,7 +188,7 @@ dim(eachmovie)
 
 ```
 
-##Step 1: Calculate parameters using EM algorithm
+## Step 1: Calculate parameters using EM algorithm
 ```{r}
 # a function to generate a group of random numnbers whose sum equals to 1
 sample_sum1<-function(number=6){
@@ -295,7 +296,7 @@ ClusterModel<-function(dataset, C){
 
 ```
 
-##Step 2: Doing cross-validation for choosing C
+## Step 2: Doing cross-validation for choosing C
 
 ```{r}
 ### cross-validation for choosing C
@@ -364,7 +365,7 @@ groupShuffleSplit <- function(df, grp_col, train_ratio=0.8, seed=NULL){
 ```
 
 
-##Step 3: Calculate the expectation of score
+## Step 3: Calculate the expectation of score
 ```{r}
 ### function to calculate the expectation of score ###
 
@@ -399,7 +400,7 @@ est_score<-apply(eachmovie_test,1,function(x){return(EstimateScore(x[3],x[2],eac
 
 ```
 
-##Step 4: Making the code more efficient
+## Step 4: Making the code more efficient
 ```{r}
 library(dplyr)
 library(magrittr)
@@ -560,7 +561,7 @@ pred <- ClusterModel(training_set, test_set, 6)
 ```
 
 
-##Step 5: display results
+## Step 5: display results
 ```{r}
 
 
