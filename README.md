@@ -18,6 +18,8 @@ Term: Fall 2017
 **Contribution statement**: 
 + Zhou, Xiaoyu: wrote and ran code for Rating Normalization, Variance Weighting, wrote evaluation function MAE and ROC, made prediction for different pairs of similarity weight (spearman correlation and vector similarity). Collaborated with Tiantian to write code and debug for EM algorithm.
 + Zhao, Yufei: wrote and ran codes for neighborhood selection(Weight Threshold, Best-n-estimator, Combined) in terms of spearman coorelation and vector similarity. Worked closely with Joaquim on data cleanning, matrix transformation, calculation of similarity weights.
++ Chen Tiantian: wrote and debug codes for model-based method. Used EM algorithm to calculate the parameters of probabilities of cluster memberships and the conditional probabilities of votes given cluster. Used cross-validation to choose cluster number. Collaborated with Xiaoyu on the code for MAE and ROC.
+
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
 
 ```
