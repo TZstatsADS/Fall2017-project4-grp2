@@ -4,17 +4,13 @@ author: "Yufei Zhao, Joaquim Lyrio"
 date: "3/22/2017"
 output: pdf_document
 ---
-Process:
-1 - load packages
-2 - read input data
-3 - convert input data to matrix format
-4 - calculate similarity measures
-5 - get neighbors
-6 - make predictions
-7 - display results
+In this project, we are implementing different collaborative filtering algorithms and comparing their performances. There are basically two types of algorithms: memory-based and model-based algorithms.
+
+# MEMORY-BASED ALGORITHMS
 
 ## Step 0: Load the packages, specify directories
 
+First, let's load (and install, if necessary) all the required packages to run the code.
 ```{r}
 if (!require("data.table")) install.packages("data.table")
 if (!require("entropy")) install.packages("entropy")
@@ -22,21 +18,29 @@ if (!require("dplyr")) install.packages("dplyr")
 library(dplyr)
 library(entropy)
 library(data.table)
-setwd("/Users/pedrohmariani/Documents/Columbia/Academic/Fall 2017/AppliedDataScience/Projects/TZstatsFolder/fall2017-project4-fall2017-project4-grp2/doc")
+```
 
+Now, let's source all the R functions necessary to run the code.
+```{r}
 # load axiliar functions
 source("../lib/auxFunctions.R")
 ```
 
 ## Step 1: Load and process the data
 
-First, we read Microsoft's data set and convert it to the format with features in columns and users in rows.
+First, we read Microsoft's data set and convert it to the format with features in columns and users in rows, so that it is easy to perform calculations.
 ```{r}
 data_orig <- readAnonymousMicrosoftWebData()
 data_MS   <- convertToMatrixData1( data = data_orig )
 ```
 
-Meanwhile, we also read Movie data set and convert it to the format with features in columns and users in rows
+The training and test sets are printed to csv files. This way, we will just read them.
+```{r}
+data_train_MS <- read.csv("../data/data_sample/MS_sample/matrix_train.csv", header = TRUE)
+data_test_MS  <- read.csv("../data/data_sample/MS_sample/matrix_test.csv",header=TRUE)
+```
+
+Additionally, we read the movie data set and convert it to the same format.
 ```{r}
 test_path <- "../data/data_sample/eachmovie_sample/data_test.csv"
 train_path <- "../data/data_sample/eachmovie_sample/data_train.csv"
@@ -49,54 +53,115 @@ data_test_movie <- read.csv("../data/data_sample/eachmovie_sample/movie_test.csv
 ```
 
 
-## Step 4: calculate similarity measures
-Since the computation is so heavy, then we use lower-level language: Java to help us to calculate similarity measures. The script is in (../lib/SimilarityMeasures.java)
+## Step 2 : Calculate similarity measures
 
+The computation of the Spearman correlation and vector similarity measures are computed by the Java code (./lib/SimilarityMeasures.java) and a csv file with the results is outputted for each data set. To run such, follow instructions written in README.md file present in './lib'. 
 
-## Step5 : get neighbor
-We can load the similarity measure results in terms of csv file below
-By the way, since the two matrixs of similarity for each dataset are too huge, we cannot upload it into github instead of Dropbox(https://www.dropbox.com/sh/pjqik8k8kexs80n/AAA5GmRCPsxcbTvLPW2ClcEWa?dl=0)
+Since the code is very computationally intensive, we will just load the results. Furthermore, since the two matrices are too heavy (around 500MB and 700MB), we cannot upload them into GitHub. This way, we will read them from Dropbox (https://www.dropbox.com/sh/pjqik8k8kexs80n/AAA5GmRCPsxcbTvLPW2ClcEWa?dl=0). 
 
-MS: selecting neighbors (top, threshold, combo)
+Let's read both data sets then.
 ```{r}
-# read data from dropbox since the martix is too large
+# read microsoft similarity measures
 similarity_measures_MS <- read.csv("~/Dropbox/Project4/similarity_measures_MS.csv", header=TRUE)
+
+# read movie similarity measures
+similarity_measures_movie <- read.csv("~/Dropbox/Project4/similarity_measures_eachmovie.csv", header=TRUE)
 ```
 
+The entropy similarity measure was computed in R, by the function 'calculateEntropy', present in ./lib/auxFunctions.R.
+```{r}
+entropyMS    <- calculateEntropy( data_train_MS )
+entropyMovie <- calculateEntropy( data_train_movie )
+```
+
+## Step 3: variance weighting
+Now, let's calculate the variance weighting for both data sets.
+
+Microsoft
+```{r}
+var_w_MS <- matrix( NA, ncol = 3 )
+colnames(var_w_MS) <- c("i","j","vw")
+iRow <- 0
+for( user_a in row.names(data_train_MS) ){
+  
+  for( user_u in row.names(data_train_MS) ){
+    
+    var_w_MS[iRow, 1] <- user_a
+    var_w_MS[iRow, 2] <- user_u
+    var_w_MS[iRow, 3] <- varianceWeighting( data_train_MS, user_a, user_u )
+    
+    iRow <- iRow + 1 
+  }
+}
+```
+
+EachMovie
+```{r}
+var_w_movie<- matrix( NA, ncol = 3 )
+colnames(var_w_movie) <- c("i","j","vw")
+iRow <- 0
+for( user_a in row.names(data_train_movie) ){
+  
+  for( user_u in row.names(data_train_movie) ){
+    
+    var_w_movie[iRow, 1] <- user_a
+    var_w_movie[iRow, 2] <- user_u
+    var_w_movie[iRow, 3] <- varianceWeighting( data_train_movie, user_a, user_u )
+    
+    iRow <- iRow + 1 
+  }
+}
+
+```
+
+## Step 4: Computing neighbors
+
+Now that we have calculated the similarity measures between users on both data sets, we can compute the various neighbor methods. Let's do it for both data sets.
+
+### Microsoft: selecting neighbors (top, threshold, combo)
+
+Best-n-estimator (n = 20)
 ```{r}
 # make neighborhood selection based on top 20 in terms of spearman correlation and vector similarity
 neighbor_select_top_MS(similarity_measures_MS, 20)
+```
 
+Weight Threshold (threshold = 0.3)
+```{r}
 # make neighborhood selection based on threshold 0.3 in terms of spearman correlation and vector similarity
 neighbor_select_threshold_MS(similarity_measures_MS, 0.3)
+```
 
+Combined (n = 20 and threshold = 0.1)
+```{r}
 # make neighborhood selection based on top 20 and threshold 0.1 in terms of spearman correlation and vector similarity
 neighbor_select_combo_MS(similarity_measures_MS,20,0.1)
 ```
 
 
-Movie: selecting neighbors (top, threshold, combo)
-```{r}
-# read data from dropbox since the martix is too large
-similarity_measures_movie <- read.csv("~/Dropbox/Project4/similarity_measures_eachmovie.csv", header=TRUE)
-```
+### Movie: selecting neighbors (top, threshold, combo)
 
+Best-n-estimator (n = 20)
 ```{r}
 # make neighborhood selection based on top 20 in terms of spearman correlation and vector similarity
 neighbor_select_top_movie(similarity_measures_movie,20)
+```
 
+Weight Threshold (threshold = 0.3)
+```{r}
 # make neighborhood selection based on threshold 0.3 in terms of spearman correlation and vector similarity
 neighbor_select_threshold_movie(similarity_measures_movie,0.3)
+```
 
+Combined (n = 20 and threshold = 0.1)
+```{r}
 # make neighborhood selection based on top 20 and threshold 0.1 in terms of spearman correlation and vector similarity
 neighbor_select_combo_movie(similarity_measures_movie,20,0.1)
 ```
 
 
-
-
 ##Step 6: make predictions
-
+Now that we have calculated the different types of measures of similarity and the neighbors according to them, we can move on to the prediction step.
 
 
 
@@ -105,114 +170,6 @@ neighbor_select_combo_movie(similarity_measures_movie,20,0.1)
 
 
 
+# MODEL-BASED ALGORITHM
 
-## Step 2: Feature design
-
-Now, let's calculate the similarity measures for both data sets.
-Following the section 3.1 in the paper, we want to use paper titles to design features for citations. As the notation used in the paper, we want to find a $m$-dimensional citation vector $\alpha_i$ for each citation $i$, $i=1,...,n$. In this dataset, $n=$ `r nrow(AKumar)`. We study "TF-IDF" (term frequency-inverse document frequency) as suggested in the paper.
-
-TF-IDF is a numerical statistics that is intended to reflect how important a word is to a document in a collection or corpus. It is often used as a weighting factor in information retrieval, text mining, and user modeling. The TF-IDF value increases proportionally to the number of times a word appears in the document, but is offset by the frequency of the word in the corpus, which helps to adjust for the fact that some words appear more frequently in general.
-
-$$
-\begin{aligned}
-\mbox{TF}(t) &=\frac{\mbox{Number of times term $t$ appears in a document}}{\mbox{Total number of terms in the document}}\\
-\mbox{IDF}(t) &=\log{\frac{\mbox{Total number of documents}}{\mbox{Number of documents with term $t$ in it}}}\\
-\mbox{TF-IDF}(t) &=\mbox{TF}(t)\times\mbox{IDF}(t)
-\end{aligned}
-$$
-
-To compute TF-IDF, we first need to construct a document-term matrix (DTM). In other words, the first step is to vectorize text by creating a map from words to a vector space. There are some good packages you could use for text mining (probably you have tried during first project, you don't need to follow my code if you are familiar with other package), e.g. *text2vec, tm, tidytext*. Here, we are going to use *text2vec* package. A good tutorial can be found here, <https://cran.r-project.org/web/packages/text2vec/vignettes/text-vectorization.html>.
-
-Let???s first create a vocabulary-based DTM. Here we collect unique terms from all documents and mark each of them with a unique ID using the  `create_vocabulary()` function. We use an iterator to create the vocabulary.
-```{r}
-it_train <- itoken(AKumar$Paper, 
-             preprocessor = tolower, 
-             tokenizer = word_tokenizer,
-             ids = AKumar$PaperID,
-             # turn off progressbar because it won't look nice in rmd
-             progressbar = FALSE)
-vocab <- create_vocabulary(it_train, stopwords = c("a", "an", "the", "in", "on",
-                                                   "at", "of", "above", "under"))
-
-vocab
-```
-
-Here, we remove pre-defined stopwords, the words like ???a???, ???the???, ???in???, ???I???, ???you???, ???on???, etc, which do not provide much useful information. 
-
-Now that we have a vocabulary list, we can construct a document-term matrix.
-```{r}
-vectorizer <- vocab_vectorizer(vocab)
-dtm_train <- create_dtm(it_train, vectorizer)
-```
-
-Now we have DTM and can check its dimensions.
-```{r}
-dim(dtm_train)
-```
-
-As you can see, the DTM has `r nrow(dtm_train)` rows, equal to the number of citations, and `r ncol(dtm_train)`, equal to the number of unique terms excluding stopwords.
-
-Then, we want to use DTM to compute TF-IDF transformation on DTM.
-```{r}
-tfidf <- TfIdf$new()
-dtm_train_tfidf <- fit_transform(dtm_train, tfidf)
-```
-
-## Step 3: Clustering
-
-Following suggestion in the paper, we carry out spectral clustering on the Gram matrix of the citation vectors by using R function `specc()` in *kernlab*. The number of clusters is assumed known as stated in the paper.
-```{r}
-start.time <- Sys.time()
-result_sclust <- specc(as.matrix(dtm_train_tfidf), 
-                       centers=length(unique(AKumar$AuthorID)))
-end.time <- Sys.time()
-time_sclust <- end.time - start.time
-table(result_sclust)
-```
-
-We can also using hierarchical clustering method under the cosine distance. The intention of using a different clustering method is just to let you know how to compare performance between various methods. 
-```{r}
-start.time <- Sys.time()
-docsdissim <- cosSparse(t(dtm_train_tfidf))
-rownames(docsdissim) <- c(1:nrow(dtm_train_tfidf))
-colnames(docsdissim) <- c(1:nrow(dtm_train_tfidf))
-#compute pairwise cosine similarities using cosSparse function in package qlcMatrix
-h <- hclust(as.dist(docsdissim), method = "ward.D")
-result_hclust <- cutree(h,length(unique(AKumar$AuthorID)))
-end.time <- Sys.time()
-time_hclust <- end.time - start.time
-table(result_hclust)
-```
-
-## Step 4: Evaluation
-
-To evaluate the performance of the method, it is required to calculate the degree of agreement between a set of system-output partitions and a set of true partitions. In general, the agreement between two partitioins is measured for a pair of entities within partitions. The basic unit for which pair-wise agreement is assessed is a pair of entities (authors in our case) which belongs to one of the four cells in the following table (Kang et at.(2009)):
-
-\includegraphics[width=500pt]{matching_matrix.png}
-
-Let $M$ be the set of machine-generated clusters, and $G$ the set of gold standard clusters. Then. in the table, for example, $a$ is the number of pairs of entities that are assigned to the same cluster in each of $M$ and $G$. Hence, $a$ and $d$ are interpreted as agreements, and $b$ and $c$ disagreements. When the table is considered as a confusion matrix for a two-class prediction problem, the standard "Precision", "Recall","F1", and "Accuracy" are defined as follows.
-
-$$
-\begin{aligned}
-\mbox{Precision} &=\frac{a}{a+b}\\
-\mbox{Recall}&=\frac{a}{a+c}\\
-\mbox{F1} &=\frac{2\times\mbox{Precision}\times\mbox{Recall}}{\mbox{Precision}+\mbox{Recall}}\\
-\mbox{Accuracy}&=\frac{a+d}{a+b+c+d}
-\end{aligned}
-$$
-
-```{r}
-source('~/Dropbox/Project4_WhoIsWho/lib/evaluation_measures.R')
-matching_matrix_hclust <- matching_matrix(AKumar$AuthorID,result_hclust)
-performance_hclust <- performance_statistics(matching_matrix_hclust)
-matching_matrix_sclust <- matching_matrix(AKumar$AuthorID,result_sclust)
-performance_sclust <- performance_statistics(matching_matrix_sclust)
-compare_df <- data.frame(method=c("sClust","hClust"),
-                         precision=c(performance_sclust$precision, performance_hclust$precision),
-                         recall=c(performance_sclust$recall, performance_hclust$recall),
-                         f1=c(performance_sclust$f1, performance_hclust$f1),
-                         accuracy=c(performance_sclust$accuracy, performance_hclust$accuracy),
-                         time=c(time_sclust,time_hclust))
-kable(compare_df,caption="Comparision of performance for two clustering methods",digits = 2)
-```
-
+### (TIAN TIAN)
