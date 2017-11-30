@@ -1,0 +1,632 @@
+---
+title: "Project 4 - Collaborative Filtering"
+author: "Yufei Zhao, Joaquim Lyrio"
+date: "3/22/2017"
+output: pdf_document
+---
+In this project, we are implementing different collaborative filtering algorithms and comparing their performances. There are basically two types of algorithms: memory-based and model-based algorithms.
+
+# MEMORY-BASED ALGORITHMS
+
+## Step 0: Load the packages, specify directories
+
+First, let's load (and install, if necessary) all the required packages to run the code.
+```{r}
+if (!require("data.table")) install.packages("data.table")
+if (!require("entropy")) install.packages("entropy")
+if (!require("dplyr")) install.packages("dplyr")
+library(dplyr)
+library(entropy)
+library(data.table)
+```
+
+Now, let's source all the R functions necessary to run the code.
+```{r}
+# load axiliar functions
+source("../lib/auxFunctions.R")
+```
+
+## Step 1: Load and process the data
+
+First, we read Microsoft's data set and convert it to the format with features in columns and users in rows, so that it is easy to perform calculations.
+```{r}
+data_orig <- readAnonymousMicrosoftWebData()
+data_MS   <- convertToMatrixData1( data = data_orig )
+```
+
+The training and test sets are printed to csv files. This way, we will just read them.
+```{r}
+data_train_MS <- read.csv("../data/data_sample/MS_sample/matrix_train.csv", header = TRUE)
+data_test_MS  <- read.csv("../data/data_sample/MS_sample/matrix_test.csv",header=TRUE)
+```
+
+Additionally, we read the movie data set and convert it to the same format.
+```{r}
+test_path <- "../data/data_sample/eachmovie_sample/data_test.csv"
+train_path <- "../data/data_sample/eachmovie_sample/data_train.csv"
+combo <- c(test_path, train_path)
+for (i in 1:2){
+  convert_matrix_from_dataset(path = combo[i])
+}
+data_train_movie <- read.csv("../data/data_sample/eachmovie_sample/movie_train.csv", header = TRUE)
+data_test_movie <- read.csv("../data/data_sample/eachmovie_sample/movie_test.csv",header=TRUE)
+```
+
+
+## Step 2 : Calculate similarity measures
+
+The computation of the Spearman correlation and vector similarity measures are computed by the Java code (./lib/SimilarityMeasures.java) and a csv file with the results is outputted for each data set. To run such, follow instructions written in README.md file present in './lib'. 
+
+Since the code is very computationally intensive, we will just load the results. Furthermore, since the two matrices are too heavy (around 500MB and 700MB), we cannot upload them into GitHub. This way, we will read them from Dropbox (https://www.dropbox.com/sh/pjqik8k8kexs80n/AAA5GmRCPsxcbTvLPW2ClcEWa?dl=0). 
+
+Let's read both data sets then.
+```{r}
+# read microsoft similarity measures
+similarity_measures_MS <- read.csv("~/Dropbox/Project4/similarity_measures_MS.csv", header=TRUE)
+
+# read movie similarity measures
+similarity_measures_movie <- read.csv("~/Dropbox/Project4/similarity_measures_eachmovie.csv", header=TRUE)
+```
+
+The entropy similarity measure was computed in R, by the function 'calculateEntropy', present in ./lib/auxFunctions.R.
+```{r}
+entropyMS    <- calculateEntropy( data_train_MS )
+entropyMovie <- calculateEntropy( data_train_movie )
+```
+
+## Step 3: variance weighting
+Now, let's calculate the variance weighting for both data sets.
+
+Microsoft
+```{r}
+var_w_MS <- matrix( NA, ncol = 3 )
+colnames(var_w_MS) <- c("i","j","vw")
+iRow <- 0
+for( user_a in row.names(data_train_MS) ){
+  
+  for( user_u in row.names(data_train_MS) ){
+    
+    var_w_MS[iRow, 1] <- user_a
+    var_w_MS[iRow, 2] <- user_u
+    var_w_MS[iRow, 3] <- varianceWeighting( data_train_MS, user_a, user_u )
+    
+    iRow <- iRow + 1 
+  }
+}
+```
+
+EachMovie
+```{r}
+var_w_movie<- matrix( NA, ncol = 3 )
+colnames(var_w_movie) <- c("i","j","vw")
+iRow <- 0
+for( user_a in row.names(data_train_movie) ){
+  
+  for( user_u in row.names(data_train_movie) ){
+    
+    var_w_movie[iRow, 1] <- user_a
+    var_w_movie[iRow, 2] <- user_u
+    var_w_movie[iRow, 3] <- varianceWeighting( data_train_movie, user_a, user_u )
+    
+    iRow <- iRow + 1 
+  }
+}
+
+```
+
+## Step 4: Computing neighbors
+
+Now that we have calculated the similarity measures between users on both data sets, we can compute the various neighbor methods. Let's do it for both data sets.
+
+### Microsoft: selecting neighbors (top, threshold, combo)
+
+Best-n-estimator (n = 20)
+```{r}
+# make neighborhood selection based on top 20 in terms of spearman correlation and vector similarity
+neighbor_select_top_MS(similarity_measures_MS, 20)
+```
+
+Weight Threshold (threshold = 0.3)
+```{r}
+# make neighborhood selection based on threshold 0.3 in terms of spearman correlation and vector similarity
+neighbor_select_threshold_MS(similarity_measures_MS, 0.3)
+```
+
+Combined (n = 20 and threshold = 0.1)
+```{r}
+# make neighborhood selection based on top 20 and threshold 0.1 in terms of spearman correlation and vector similarity
+neighbor_select_combo_MS(similarity_measures_MS,20,0.1)
+```
+
+
+### Movie: selecting neighbors (top, threshold, combo)
+
+Best-n-estimator (n = 20)
+```{r}
+# make neighborhood selection based on top 20 in terms of spearman correlation and vector similarity
+neighbor_select_top_movie(similarity_measures_movie,20)
+```
+
+Weight Threshold (threshold = 0.3)
+```{r}
+# make neighborhood selection based on threshold 0.3 in terms of spearman correlation and vector similarity
+neighbor_select_threshold_movie(similarity_measures_movie,0.3)
+```
+
+Combined (n = 20 and threshold = 0.1)
+```{r}
+# make neighborhood selection based on top 20 and threshold 0.1 in terms of spearman correlation and vector similarity
+neighbor_select_combo_movie(similarity_measures_movie,20,0.1)
+```
+
+
+## Step 5: Make predictions
+Now that we have calculated the different types of measures of similarity and the neighbors according to them, we can move on to the prediction step.
+```{r}
+# clean the data for ms-test and movie-test seperately
+mt=read.csv("/Users/Xiaoyu/Downloads/Fall2017-project4-grp2-master/data/data_sample/eachmovie_sample/movie_test.csv",header = T)
+
+list <- strsplit(colnames(mt)[c(-1,-2)], 'X')
+attributeID <- NULL
+for (i in 1:length(list)){
+  attributeID <- c(attributeID, as.numeric(list[[i]][2]))
+}
+matrix <- NULL
+for(i in 1:nrow(mt)){
+  index <- attributeID[mt[i,c(-1,-2)]!=0]
+  score <- mt[i,c(-1,-2)][mt[i,c(-1,-2)]!=0]
+  mat <- matrix(c(rep(mt[i,2], length(index)), index,score), ncol=3, byrow=FALSE)
+  matrix <- rbind(matrix, mat)
+  #record
+  print(i)
+}
+
+df <- data.frame(matrix)
+colnames(df) <- c("user", "attribute", "score")
+#write.csv(df, file = "~/Desktop/df_movie_test.csv")
+
+#Ranking Score Evaluation
+
+rank_score <- function(voteVector, d = 0, alpha = 5){
+  total <- 0
+  for(j in 1:length(voteVector)){
+    total = total + max(voteVector[j]-d,0)/2^((j-1)/(alpha-1))
+  }
+  return(total)
+}
+
+calculate_all_rank_scores <- function(matrix){
+  scores <- NULL
+  for(i in 1:nrow(matrix)){
+    scores <- c(scores, rank_score(matrix[i,]))
+  }
+  return(100*sum(scores)/(length(scores)*max(scores)))
+  }
+calculate_all_rank_scores(mt)
+
+```
+
+
+
+# MODEL-BASED ALGORITHM
+
+## Step 0: Prepare the environment and read data
+
+```{r,warning=FALSE}
+
+library(magrittr)
+library(dplyr)
+
+## read data ##
+setwd("~/Google Drive/Course | ADS/Project 4/data_sample/eachmovie_sample")
+eachmovie<-read.csv("data_train.csv",header = T)
+eachmovie_test<-read.csv("data_test.csv",header = T)
+dim(eachmovie)
+
+```
+
+## Step 1: Calculate parameters using EM algorithm
+```{r}
+# a function to generate a group of random numnbers whose sum equals to 1
+sample_sum1<-function(number=6){
+  #input--number: amount of random numbers
+  #input--sum: the sum of random numbers generated
+  sample1<- sort(runif((number-1)))
+  sample2<-c(sample1[1],diff(sample1),1-sample1[number-1])
+  return(sample2)
+}
+
+
+ClusterModel<-function(dataset, C){
+  
+  ### STEP 1: initial guess for mu and gamma ###
+  mu <- sample_sum1(C)
+  sample_jc <- replicate(length(unique(dataset$Movie))*C,sample_sum1())
+
+  Movie_set <- unique(dataset$Movie)
+  K <- 6
+  gamma_est <- array(data = sample_jc, dim = c(K, length(Movie_set), C), # array: k j c
+                     dimnames = list(
+                       c(1:K), 
+                       Movie_set,
+                       c(1:C)
+                     ))
+  
+  ### STEP 2 ###
+  N <-length(unique(dataset$User)) # N= 5055
+  
+  Pi_est<-matrix(NA, nrow=N, ncol = C)
+  rownames(Pi_est)<-c(unique(dataset$User))
+  for(i in unique(dataset$User)){
+    product<-rep(NA, C)
+    for(c in 1:C){
+      subdata<-dataset[dataset$User==i,]
+      product[c] <- 1
+      for(j in unique(subdata$movie)){
+        k<-subdata[subdata$movie == j,4]
+        g_est<-gamma_est[k,dimnames(gamma_est)[[2]]==j,c] 
+        product[c]<-product*g_est
+      }
+    }
+    s<- sum(mu*product)
+    Pi_est[rownames(Pi_est)==i,]<-mu*product/s
+  }
+  
+  ### STEP 3 & 4: iteration to update parameters ###
+  
+  change_mu <- 1
+  change_gamma <- 1
+ 
+  while(change_mu >0.5 & change_gamma > 0.5){
+    mu_old<-mu  
+    gamma_est_old<-gamma_est
+    
+    ## update mu
+    for(c in 1:C){
+      mu[c] = sum(Pi_est[,c])/N
+    }
+  
+    ## update gamma estimation
+    for(k in 1:6){
+      for(c in 1:C){
+       for(j in unique(dataset$Movie)){
+      
+         sub_j<-dataset[dataset$Movie==j,]
+         # find user who have scored movie j
+         set_of_i<- unique(sub_j$User)
+       
+         sum_1<-0
+         sum_2<-0
+         for(i in set_of_i){
+           sum_1 <- sum_1+Pi_est[rownames(Pi_est)==i,c]*(sub_j$Score[sub_j$User==i]==k)
+           sum_2<-sum_2+Pi_est[rownames(Pi_est)==i,c]
+           }
+         gamma_est[k,sum(unique(dataset$movie)<=j),c]<-sum_1/sum_2
+       }}}
+    
+    ### update Pi
+      for(i in unique(dataset$User)){
+        product<-rep(NA, C)
+        for(c in 1:C){
+          subdata<-dataset[dataset$User==i,]
+          product[c] <- 1
+          for(j in unique(subdata$movie)){
+            k<-subdata[subdata$movie == j,4]
+            g_est<-gamma_est[k,dimnames(gamma_est)[[2]]==j,c] 
+            product[c]<-product*g_est
+          }
+        }
+        s<- sum(mu*product)
+        Pi_est[as.character(i),]<-mu*product/s
+        }
+    
+    
+  
+   ## calculate the change of mu and gamma
+    change_mu<-norm(as.matrix(mu-mu_old), 'f')
+    change_gamma<-norm(as.matrix(gamma_est-gamma_est_old),'f')
+  }
+  
+  ## return parameters
+  return(list(mu, gamma_est))
+}
+
+```
+
+## Step 2: Doing cross-validation for choosing C
+
+```{r}
+### cross-validation for choosing C
+CV_Movie <- function(fold=5, dataset2, C_list){
+  
+  n = nrow(dataset2)
+  c_number<-length(C_list)
+  error_c <-rep(NA, c_number)
+  result_para<-vector("list",c_number)
+  
+  for(count in 1:c_number){
+        
+    train_idx<-groupShuffleSplit(dataset2, grp_col = "User")
+    test_data<-dataset2[-train_idx,]
+    train_data<-dataset2[train_idx,]
+      
+    result_para[[count]]<- ClusterModel(train_data,C_list[count])
+      
+    #calculate error
+    test_data$est_score<-apply(test_data,1,function(x){return(EstimateScore(x[3],x[2],train_data,result_para[[count]]))})
+    
+    
+    # #criterion 1: accuracy (error_fold)
+    # error_fold[fold]<-sum(test_data$score == test_data$expectation_score)/(n/5)
+    
+    #criterion 2: MAE
+    row_na<-is.na(test_data$est_score)
+    error_c[count]<-sum(abs(test_data$Score[!row_na] - test_data$est_score[!row_na]))/(nrow(test_data)-sum(row_na))
+
+    # #criterion 3: ROC
+    # n=0;
+    # m=0;
+    # for(i in 1:nrow(test_data)){
+    # if(test_data[i,4]>3 & test_data[i,5]>3){
+    #  n=n+1
+    # }else if(test_data[i,4]>3 & test_data[i,5]<=3){
+    #   m=m+1
+    #  }
+    # }
+    # error3_fold[fold]<- n / (n+m)
+    
+  }
+  
+  C_best<-C_list[which.min(error_c)]
+  mu_best<-result_para[[which.min(error_c)]][[1]]
+  gamma_best <- result_para[[which.min(error_c)]][[2]]
+  
+  return(list(C_best,mu_best,gamma_best))
+}
+
+groupShuffleSplit <- function(df, grp_col, train_ratio=0.8, seed=NULL){
+  # input
+  #   df      : (data.frame) dataset
+  #   grp_col : (string) the name of the factor column to be split
+  #   train_ratio : (float) the ratio of the training set in dataset
+  # output
+  #   train_idx: (vector) the index of the training set in all dataset 
+  set.seed(seed)
+  train_set <- (df %>% split(df[grp_col]) 
+                %>% lapply(function(df){ return(df[sample(nrow(df), nrow(df)*train_ratio), ]) }) 
+                %>% lapply(function(df){ return(cbind(idx = as.numeric(rownames(df)), df)) }) 
+                %>% bind_rows()
+  )
+  return(c(train_set$idx))
+}
+```
+
+
+## Step 3: Calculate the expectation of score
+```{r}
+### function to calculate the expectation of score ###
+
+EstimateScore<-function(i1,b,dataset3,para1){
+  # input i1: user id; input b: movie id
+  
+  if(!any(b==unique(dataset3$Movie))){return(NA)}
+  mu_from_em<-para1[[1]]
+  gamma_from_em<-para1[[2]]
+  expect_score <- 0
+  for(k in 1:6){
+    sum_up <- 0
+    sum_down <- 0
+    for(cc in 1:dim(gamma_from_em)[3]){
+    gamma_c<-gamma_from_em[,,cc]
+    I_i <- dataset3$Movie[dataset3$User == i1]
+    pd <- 1
+    for(j in I_i){
+      pd <- pd*gamma_c[dataset3$Score[dataset3$User==i1 & dataset3$Movie==j],as.character(j)]
+      }
+    sum_up <- sum_up + mu_from_em[cc]*gamma_c[k,as.character(b)] *(pd+0.0000001)
+    sum_down <- sum_down + mu_from_em[cc]*(pd+0.0000001)
+    }
+    expect_score <- expect_score + k*sum_up/sum_down
+  }
+  return(expect_score)
+}
+
+final_para<-ClusterModel(eachmovie,5)
+
+est_score<-apply(eachmovie_test,1,function(x){return(EstimateScore(x[3],x[2],eachmovie,final_para))})
+
+```
+
+## Step 4: Making the code more efficient
+```{r}
+library(dplyr)
+library(magrittr)
+library(Rmpfr) # high-precision mulitply with very small number
+library(parallel)
+
+ClusterModel <- function(training_set, test_set, C){
+  
+  # initial parallel 
+  no_cores <- detectCores() - 1
+  
+  # need to check training_set and test_set
+  # TO-DO: stopif(check_dataset(training_set, test_set))
+  
+  full_data = bind_rows(training_set, test_set)
+  
+  # initial the params: mu, gamma
+  Movie_set <- unique(full_data$Movie)
+  User_set <- unique(full_data$User)
+  K <- 6
+  rm(full_data)
+  
+  mu_est <- sum1_sampler(C)
+  
+  sample_jc <- replicate(length(Movie_set)*C, sum1_sampler(K+1))
+  gamma_est <- array(data = sample_jc, 
+                     dim = c(K, length(Movie_set), C), # array: k j c
+                     dimnames = list(
+                       c(1:K), 
+                       Movie_set,
+                       c(1:C)
+                     ))
+  # check:
+  # print(sum(gamma_est[,1,1]))
+  
+  params <- list()
+  params[[1]] <- mu_est
+  params[[2]] <- gamma_est
+  
+  # update the params
+  change_mu <- 1
+  change_gamma <- 1
+  iter <- 0
+  
+  print("Finish initialization.")
+  
+  while(change_mu > 0.5 & change_gamma > 0.5){ # iteration stop condition
+    
+    prev_mu <- mu_est
+    prev_gamma <- gamma_est
+    
+    # update params
+    # E step
+    pi <- (mclapply(User_set, FUN = function(i){ return(calc_pi_i(i, params, training_set, C))}, mc.cores = no_cores)
+           %>% unlist()
+           %>% matrix(nrow = length(User_set), ncol = C, dimnames = list(User_set, 1:C), byrow = TRUE)
+           %>% array(dim=c(length(User_set), C), dimnames = list(User_set, 1:C))
+    )
+    
+    # check-point:
+    # pi should be a N*C matrix
+    # sum(pi[1,])
+    
+    # M step
+    ## update mu
+    mu_est <- apply(pi, FUN = sum, MARGIN = 2) / nrow(pi)
+    ## update gamma
+    for (j in Movie_set){
+      User_set_j <- subset(training_set, Movie==j)
+      pi_j <- pi[as.character(User_set_j$User), ,drop=FALSE]
+      for (k in 1:K){
+        User_set_j_k <- subset(User_set_j, Movie==j & Score==k)$User
+        if (length(User_set_j_k) == 0){
+          gamma_est[k, as.character(j), ] = 0
+        } else {
+          user_set_j_idx <- as.character(User_set_j$User)
+          gamma_est[k, as.character(j), ] = apply(pi[as.character(User_set_j_k), ,drop=FALSE], FUN = sum, MARGIN = 2) / apply(pi[user_set_j_idx, ,drop=FALSE], sum, MARGIN = 2)
+        }
+      }
+    }
+    
+    # calculate change
+    change_mu <- norm(as.matrix(mu_est - prev_mu), 'f')
+    change_gamma <- norm(as.matrix(gamma_est - prev_gamma),'f')
+    iter <- iter + 1
+    print(paste0("iteration: ", iter, ", change_mu:", change_mu, ", change_gamma:", change_gamma))
+    
+  }
+  
+  # predict the test set score
+  score <- estimate_score(test_set, training_set, params=params)
+  
+  return(score)
+}
+
+sum1_sampler <- function(number=6){
+  #input--number: amount of random numbers
+  #input--sum: the sum of random numbers generated
+  sample1<- sort(runif((number-1)))
+  sample2<-c(sample1[1],diff(sample1),1-sample1[number-1])
+  return(sample2)
+}
+
+estimate_single_score <-function(i, b, training_set, params){
+  # input 
+  #   i: (integer) user id
+  #   b: (integer) movie id
+  
+  gamma_from_em <- params[[2]]
+  mu_from_em <- params[[1]]
+  K <- 6
+  
+  score_k <- numeric(K+1) 
+  
+  I_i <- subset(training_set, User==i)$Movie
+  for (k in 1:K){
+    prob_b = gamma_from_em[k, as.character(b), ]
+    
+    prob_j_product <- (gamma_from_em[k, as.character(I_i), ,drop=TRUE]
+                       %>% Rmpfr::mpfr(8)
+                       %>% apply(FUN = prod, MARGIN = 2)
+    )
+    score_k[k] <- sum(mu_from_em * prob_b * prob_j_product) / sum(mu_from_em * prob_j_product)
+  }
+  score_k <- score_k %>% lapply(FUN = as("numeric")) %>% unlist()
+  return(sum(c(1:(K+1))*score_k))
+}
+
+estimate_score<- function(test_set, training_set, params){
+  return(mcmapply(FUN = function(i, b){ return(estimate_single_score(i, b, params = params, training_set = training_set))},
+                  test_set$User, test_set$Movie,
+                  mc.cores=no_cores)
+  )
+} 
+
+calc_pi_i <- function(i, params, training_set, C){
+  mu_from_em <- params[[1]]
+  gamma_from_em <- params[[2]]
+  phi_D_i <- calc_phi_D_i(i, gamma_from_em, training_set, C)
+  pi_i <- (mu_from_em * phi_D_i)/sum(mu_from_em * phi_D_i)
+  return(Rmpfr::asNumeric(pi_i))
+}
+
+calc_phi_D_i <- function(i, gamma, training_set, C){
+  I_i <- subset(training_set, User==i)$Movie
+  phi_D_i <- Rmpfr::mpfr(rep(1, C), 8)
+  for (j in I_i){
+    k <- subset(training_set, User==i & Movie==j)$Score
+    phi_D_i <- phi_D_i * gamma[k, as.character(j), ]
+  }
+  return(phi_D_i)
+}
+
+training_set <- eachmovie
+test_set <- eachmovie_test
+
+pred <- ClusterModel(training_set, test_set, 6)
+```
+
+
+## Step 5: display results
+```{r}
+
+
+#criterion 1: MAE
+mae <- function(pred, y){
+  return(mean(abs(pred-y),na.rm = T))
+}
+
+test_error1 <- mae(est_score,eachmovie_test$Score)
+test_error1_eff <- mae(pred,eachmovie_test$Score)
+print(test_error1)
+print(test_error1_eff)
+
+#criterion 2: ROC
+roc_rm_na<-function(pred2,y2){
+  n=0
+  m=0
+  y2<-y2[!is.na(pred2)]
+  pred2<-pred2[!is.na(pred2)]
+  for(i2 in 1:length(y2)){
+    if(y2[i2]>3 & pred2[i2]>3){n=n+1}
+    else if(y2[i2]>3 & pred2[i2]<=3){m=m+1}
+  }
+  return(n/(n+m))
+}
+
+test_error2<- roc_rm_na(est_score,eachmovie_test$Score)
+test_error2_eff<- roc_rm_na(pred,eachmovie_test$Score)
+print(test_error2)
+print(test_error2_eff)
+```
